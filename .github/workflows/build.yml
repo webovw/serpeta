@@ -40,13 +40,16 @@ jobs:
         with open(p, 'w') as f: f.write(content)
         "
 
-    - name: Rebrand App (Name, Icons, Colors)
+    - name: Install Python Image Tools
+      run: python3 -m pip install Pillow
+
+    - name: Rebrand App (Name, PV Icons, Colors, Banks Bypass)
       run: |
         python3 -c "
         import os, glob
         from PIL import Image, ImageDraw
 
-        # 1. Заменяем имя приложения во ВСЕХ языках (русский, английский и др.)
+        # 1. Заменяем имя приложения во ВСЕХ языках
         for f in glob.glob('V2rayNG/app/src/main/res/values*/strings.xml'):
             with open(f, 'r', encoding='utf-8') as fp:
                 c = fp.read()
@@ -60,7 +63,7 @@ jobs:
             with open(bg_xml, 'w', encoding='utf-8') as fp:
                 fp.write('<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<resources>\n    <color name=\"ic_launcher_background\">#060814</color>\n</resources>\n')
 
-        # 3. Генерируем фирменные неоновые иконки PV под все разрешения экрана
+        # 3. Генерируем фирменные неоновые иконки PV
         def make_pv_icon(size):
             img = Image.new('RGBA', (size, size), (6, 8, 20, 255))
             draw = ImageDraw.Draw(img)
@@ -95,7 +98,26 @@ jobs:
         if os.path.exists(web_icon):
             make_pv_icon(512).save(web_icon)
 
-        print('Rebranding complete!')
+        # 4. Вшиваем обход 70+ банков РФ и сервисов в настройки по умолчанию
+        settings_file = 'V2rayNG/app/src/main/java/com/v2ray/ang/handler/SettingsManager.kt'
+        if os.path.exists(settings_file):
+            with open(settings_file, 'r', encoding='utf-8') as fp:
+                sc = fp.read()
+            
+            apps_list = 'setOf(\"ru.sberbankmobile\", \"ru.sberbank.sbol\", \"com.idamob.tinkoff.android\", \"ru.vtb24.mobilebanking.android\", \"ru.alfabank.mobile.android\", \"ru.gazprombank.android.mobilebank.app\", \"ru.raiffeisennews\", \"ru.rshb.dbo.mobile\", \"ru.sovcombank.halva\", \"ru.mkb.mobile\", \"ru.rosbank.android\", \"ru.bcs.bank\", \"ru.pochta.bank\", \"ru.uralsib.mobile\", \"ru.otpbank.mobile\", \"ru.psbank.mobile\", \"ru.akbars.mobile\", \"ru.open.bank\", \"ru.homecredit.mybank\", \"ru.tcsbank.investing\", \"ru.nspk.sbpay\", \"ru.vtb.mobilebank\", \"ru.ozon.app.android\", \"com.wildberries.ru\", \"com.magnit.express\", \"ru.tander.magnit\", \"com.x5retailgroup.pyaterochka\", \"ru.perekrestok.app\", \"ru.lentaonline.android\", \"ru.aliexpress.buyer\", \"ru.dns_shop.android\", \"ru.mvideo.android\", \"ru.eldorado.android\", \"ru.citilink.android\", \"com.avito.android\", \"ru.yandex.market\", \"ru.detmir.dmbonus\", \"com.vkontakte.android\", \"ru.oneme.app\", \"com.icq.mobile\", \"ru.ok.android\", \"ru.mail.mailapp\", \"ru.yandex.searchplugin\", \"ru.yandex.taxi\", \"ru.yandex.yandexmaps\", \"ru.yandex.music\", \"ru.rutube.app\", \"ru.kinopoisk\", \"ru.gosuslugi.mobile\", \"ru.nalog.lk\", \"ru.mos.polis\", \"ru.sberbankmobile_alpha\", \"ru.mts.mymts\", \"ru.beeline.services\", \"ru.megafon.mlk\", \"ru.tele2.mytele2\", \"ru.rt.mlk\", \"ru.delivery.club\", \"ru.samokat.android\", \"ru.yandex.eda\", \"ru.dodopizza.app\", \"ru.kfc.mobile\", \"ru.burgerking.mobile\", \"ru.sportmaster.app\", \"ru.mvm.android\", \"ru.aptekaru.android\", \"ru.apteka.eapteka\", \"ru.rzd.pass\", \"ru.aeroflot.mobile\", \"ru.pochta.mobileapp\", \"ru.cdek.app\", \"ru.boxberry.app\")'
+            
+            inject_code = f'''
+        if (MmkvManager.decodeSettingsStringSet(AppConfig.PREF_PER_APP_PROXY_SET).isNullOrEmpty()) {{
+            MmkvManager.encodeSettings(AppConfig.PREF_PER_APP_PROXY, true)
+            MmkvManager.encodeSettings(AppConfig.PREF_BYPASS_APPS, true)
+            MmkvManager.encodeSettings(AppConfig.PREF_PER_APP_PROXY_SET, {apps_list})
+        }}
+'''
+            sc = sc.replace('ensureDefaultValue(AppConfig.PREF_MODE, VPN)', 'ensureDefaultValue(AppConfig.PREF_MODE, VPN)\n' + inject_code)
+            with open(settings_file, 'w', encoding='utf-8') as fp:
+                fp.write(sc)
+
+        print('Rebranding & Banks bypass configured!')
         "
 
     - name: Restore cached libhevtun
