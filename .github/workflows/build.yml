@@ -40,6 +40,64 @@ jobs:
         with open(p, 'w') as f: f.write(content)
         "
 
+    - name: Rebrand App (Name, Icons, Colors)
+      run: |
+        python3 -c "
+        import os, glob
+        from PIL import Image, ImageDraw
+
+        # 1. Заменяем имя приложения во ВСЕХ языках (русский, английский и др.)
+        for f in glob.glob('V2rayNG/app/src/main/res/values*/strings.xml'):
+            with open(f, 'r', encoding='utf-8') as fp:
+                c = fp.read()
+            c = c.replace('>v2rayNG<', '>Phlux VPN<').replace('>v2ray<', '>Phlux VPN<')
+            with open(f, 'w', encoding='utf-8') as fp:
+                fp.write(c)
+
+        # 2. Устанавливаем тёмный фон иконки #060814
+        bg_xml = 'V2rayNG/app/src/main/res/values/ic_launcher_background.xml'
+        if os.path.exists(bg_xml):
+            with open(bg_xml, 'w', encoding='utf-8') as fp:
+                fp.write('<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<resources>\n    <color name=\"ic_launcher_background\">#060814</color>\n</resources>\n')
+
+        # 3. Генерируем фирменные неоновые иконки PV под все разрешения экрана
+        def make_pv_icon(size):
+            img = Image.new('RGBA', (size, size), (6, 8, 20, 255))
+            draw = ImageDraw.Draw(img)
+            s = size / 512.0
+            
+            p_poly = [
+                (int(110*s), int(120*s)), (int(330*s), int(120*s)), (int(380*s), int(170*s)),
+                (int(380*s), int(250*s)), (int(330*s), int(300*s)), (int(180*s), int(300*s)),
+                (int(110*s), int(370*s)), (int(110*s), int(290*s)), (int(170*s), int(230*s)),
+                (int(300*s), int(230*s)), (int(320*s), int(210*s)), (int(320*s), int(190*s)),
+                (int(300*s), int(170*s)), (int(170*s), int(170*s)),
+            ]
+            draw.polygon(p_poly, fill=(0, 132, 255, 255))
+            
+            v_poly = [
+                (int(210*s), int(300*s)), (int(300*s), int(410*s)), (int(400*s), int(240*s)),
+                (int(445*s), int(240*s)), (int(300*s), int(460*s)), (int(165*s), int(300*s)),
+            ]
+            draw.polygon(v_poly, fill=(0, 240, 255, 255))
+            return img
+
+        sizes = {'mdpi': 48, 'hdpi': 72, 'xhdpi': 96, 'xxhdpi': 144, 'xxxhdpi': 192}
+        for density, px in sizes.items():
+            folder = f'V2rayNG/app/src/main/res/mipmap-{density}'
+            if os.path.exists(folder):
+                icon = make_pv_icon(px)
+                icon.save(os.path.join(folder, 'ic_launcher.png'))
+                icon.save(os.path.join(folder, 'ic_launcher_round.png'))
+                icon.save(os.path.join(folder, 'ic_launcher_foreground.png'))
+
+        web_icon = 'V2rayNG/app/src/main/ic_launcher-web.png'
+        if os.path.exists(web_icon):
+            make_pv_icon(512).save(web_icon)
+
+        print('Rebranding complete!')
+        "
+
     - name: Restore cached libhevtun
       id: cache-libhevtun-restore
       uses: actions/cache/restore@v4
