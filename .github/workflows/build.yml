@@ -33,7 +33,12 @@ jobs:
           --channel=0 \
           --install "ndk;29.0.14206865"
         echo "NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> $GITHUB_ENV
-        sed -i '10i\\ndkVersion = "29.0.14206865"' ${{ github.workspace }}/V2rayNG/app/build.gradle.kts || true
+        python3 -c "
+        p = 'V2rayNG/app/build.gradle.kts'
+        with open(p, 'r') as f: content = f.read()
+        content = content.replace('compileSdk = 37', 'compileSdk = 37\n    ndkVersion = \"29.0.14206865\"')
+        with open(p, 'w') as f: f.write(content)
+        "
 
     - name: Restore cached libhevtun
       id: cache-libhevtun-restore
